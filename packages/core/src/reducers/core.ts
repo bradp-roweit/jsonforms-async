@@ -45,7 +45,7 @@ import {
   UPDATE_CORE,
   UpdateCoreAction,
 } from '../actions';
-import { createAjv, decode, isOneOfEnumSchema, Reducer } from '../util';
+import {createAjv, decode, isAsyncSchema, isOneOfEnumSchema, Reducer} from '../util';
 import type { JsonSchema, UISchemaElement } from '../models';
 
 export const validate = (
@@ -178,7 +178,7 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
         validationMode === 'NoValidation'
           ? undefined
           : thisAjv.compile(action.schema);
-      const e = validate(v, action.data);
+      const e = isAsyncSchema(action.schema) ? [] : validate(v, action.data);
       const additionalErrors = getAdditionalErrors(state, action);
 
       return {
@@ -208,9 +208,9 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
           validationMode === 'NoValidation'
             ? undefined
             : thisAjv.compile(action.schema);
-        errors = validate(validator, action.data);
+        errors = isAsyncSchema(action.schema) ? [] : validate(validator, action.data);
       } else if (state.data !== action.data) {
-        errors = validate(validator, action.data);
+        errors = isAsyncSchema(action.schema) ? [] : validate(validator, action.data);
       }
       const additionalErrors = getAdditionalErrors(state, action);
 
@@ -243,8 +243,7 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
         state.validationMode === 'NoValidation'
           ? undefined
           : currentAjv.compile(state.schema);
-      const errors = validate(validator, state.data);
-      return {
+        const errors = isAsyncSchema(state.schema) ? [] : validate(validator, state.data);      return {
         ...state,
         validator,
         errors,
@@ -256,7 +255,7 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
       const v = needsNewValidator
         ? reuseAjvForSchema(state.ajv, action.schema).compile(action.schema)
         : state.validator;
-      const errors = validate(v, state.data);
+      const errors = isAsyncSchema(action.schema) ? [] : validate(v, state.data);
       return {
         ...state,
         validator: v,
@@ -276,7 +275,7 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
       } else if (action.path === '') {
         // empty path is ok
         const result = action.updater(cloneDeep(state.data));
-        const errors = validate(state.validator, result);
+        const errors = isAsyncSchema(state.schema) ? [] : validate(state.validator, result);
         return {
           ...state,
           data: result,
@@ -290,7 +289,7 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
           newData,
           state.data === undefined ? {} : state.data
         );
-        const errors = validate(state.validator, newState);
+        const errors = isAsyncSchema(state.schema) ? [] : validate(state.validator, newState);
         return {
           ...state,
           data: newState,
@@ -320,7 +319,7 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
         const validator = reuseAjvForSchema(state.ajv, state.schema).compile(
           state.schema
         );
-        const errors = validate(validator, state.data);
+        const errors = isAsyncSchema(state.schema) ? [] : validate(validator, state.data);
         return {
           ...state,
           validator,

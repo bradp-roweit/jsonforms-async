@@ -22,9 +22,10 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 */
-import Ajv from 'ajv';
+import Ajv, {ErrorObject, ValidateFunction} from 'ajv';
 import addFormats from 'ajv-formats';
 import type { Options } from 'ajv';
+import {JsonFormsCore} from "../reducers";
 
 export const createAjv = (options?: Options) => {
   const ajv = new Ajv({
@@ -36,3 +37,33 @@ export const createAjv = (options?: Options) => {
   addFormats(ajv);
   return ajv;
 };
+
+/**
+ * Initialises async validation using the provided validator, returning
+ * a promise which resolves to an array of `ErrorObject`.
+ */
+export const validateAsync = (
+    validator: ValidateFunction | undefined,
+    data: any
+): Promise<ErrorObject[]> => {
+  if (validator === undefined) {
+    return Promise.resolve([]);
+  }
+
+  return Promise.resolve(validator(data))
+      .then(() => {
+        return [];
+      }).catch((err) => {
+        return err.errors;
+      });
+};
+
+/**
+ * Determines whether something has changed which requires the data to be revalidated
+ */
+export const shouldValidate = (oldState: JsonFormsCore, newState: JsonFormsCore): boolean => {
+  return oldState.data != newState.data ||
+  oldState.schema != newState.schema ||
+  oldState.validationMode != newState.validationMode ||
+  oldState.ajv != newState.ajv;
+}

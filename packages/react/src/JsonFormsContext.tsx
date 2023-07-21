@@ -75,6 +75,8 @@ import {
   OwnPropsOfLabel,
   LabelProps,
   mapStateToLabelProps,
+  validateAsync,
+  isAsyncSchema
 } from '@jsonforms/core';
 import debounce from 'lodash/debounce';
 import React, {
@@ -88,6 +90,7 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
+import {ErrorObject} from "ajv";
 
 const initialCoreState: JsonFormsCore = {
   data: {},
@@ -153,6 +156,21 @@ export const JsonFormsStateProvider = ({
       })
     );
   }, [data, schema, uischema, ajv, validationMode, additionalErrors]);
+
+
+  /*
+   * JsonForms core reducer cannot support asynchronous validation. If the schema
+   * has the asynchronous flag set to `true`, we call the `validateAsync`
+   * method and update the errors when it's finished.
+   */
+  useEffect(() => {
+    if (isAsyncSchema(core.schema) && core.validationMode !== 'NoValidation') {
+      validateAsync(core.validator, core.data)
+          .then((errors: ErrorObject[]) => {
+            coreDispatch(Actions.updateErrors(errors));
+          });
+    }
+  }, [core.data, core.schema, core.validationMode, core.ajv]);
 
   const [config, configDispatch] = useReducer(configReducer, undefined, () =>
     configReducer(undefined, Actions.setConfig(initState.config))

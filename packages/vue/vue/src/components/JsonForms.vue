@@ -23,6 +23,9 @@ import {
   CoreActions,
   i18nReducer,
   JsonFormsI18nState,
+  validateAsync,
+  isAsyncSchema,
+  shouldValidate
 } from '@jsonforms/core';
 import { JsonFormsChangeEvent, MaybeReadonly } from '../types';
 import DispatchRenderer from './DispatchRenderer.vue';
@@ -130,6 +133,11 @@ export default defineComponent({
           additionalErrors: this.additionalErrors,
         })
       );
+
+      // Call validate which will kick off async validation
+      // if required.
+      this.validate(core);
+
       return core;
     };
     return {
@@ -240,18 +248,42 @@ export default defineComponent({
     },
   },
   mounted() {
-    // emit an inital change so clients can react to error validation and default data insertion
+    // emit an initial change so clients can react to error validation and default data insertion
     this.$emit('change', {
       data: this.jsonforms.core.data,
       errors: this.jsonforms.core.errors,
     });
   },
   methods: {
+    validate(state: any) {
+      /*
+       * JsonForms core reducer cannot support asynchronous validation. If the schema
+       * has the asynchronous flag set to `true`, we call the `validateAsync`
+       * method and update the errors when it's finished.
+       */
+      if (isAsyncSchema(state.schema) && state.validationMode !== "NoValidation") {
+        validateAsync(state.validator, state.data)
+            .then((errors: ErrorObject[]) => {
+              const validatedState = coreReducer(state, Actions.updateErrors(errors));
+              if (validatedState !== state) {
+                this.jsonforms.core = validatedState;
+              }
+            });
+      }
+    },
     dispatch(action: CoreActions) {
-      this.jsonforms.core = coreReducer(
-        this.jsonforms.core as JsonFormsCore,
-        action
+      const oldCoreState = this.jsonforms.core;
+
+      const newCoreState = this.jsonforms.core = coreReducer(
+          this.jsonforms.core as JsonFormsCore,
+          action
       );
+
+      // Call validate if something has changed.
+      // This will kick off async validation if required.
+      if (shouldValidate(oldCoreState as JsonFormsCore, newCoreState as JsonFormsCore)) {
+        this.validate(this.jsonforms.core);
+      }
     },
   },
 });

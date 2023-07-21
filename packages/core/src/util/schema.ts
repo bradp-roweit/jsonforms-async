@@ -48,3 +48,12 @@ export const isOneOfEnumSchema = (schema: JsonSchema) =>
   Object.prototype.hasOwnProperty.call(schema, 'oneOf') &&
   schema.oneOf &&
   (schema.oneOf as JsonSchema[]).every((s) => s.const !== undefined);
+
+/**
+ * Tests whether the schema requires asynchronous validation.
+ */
+export const isAsyncSchema = (schema: JsonSchema): boolean => {
+  return !!schema &&
+      Object.prototype.hasOwnProperty.call(schema, '$async') &&
+      (schema as any)['$async'] === true;
+}

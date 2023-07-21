@@ -44,6 +44,9 @@ import {
   UISchemaTester,
   ValidationMode,
   updateI18n,
+  validateAsync,
+  isAsyncSchema,
+  shouldValidate
 } from '@jsonforms/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import type { JsonFormsBaseRenderer } from './base.renderer';
@@ -161,10 +164,30 @@ export class JsonFormsAngularService {
   }
 
   updateCore<T extends CoreActions>(coreAction: T): T {
+    const oldCoreState = this._state.core;
+
     const coreState = coreReducer(this._state.core, coreAction);
     if (coreState !== this._state.core) {
       this._state.core = coreState;
       this.updateSubject();
+    }
+
+    /*
+     * JsonForms core reducer cannot support asynchronous validation. If the schema
+     * has the asynchronous flag set to `true`, we call the `validateAsync`
+     * method and update the errors when it's finished.
+     */
+    if (isAsyncSchema(coreState.schema) && coreState.validationMode !== "NoValidation") {
+      if (shouldValidate(oldCoreState, coreState)) {
+        validateAsync(coreState.validator, coreState.data)
+            .then((errors: ErrorObject[]) => {
+              const validatedState = coreReducer(coreState, Actions.updateErrors(errors));
+              if (validatedState !== coreState) {
+                this._state.core = validatedState;
+                this.updateSubject();
+              }
+            });
+      }
     }
     return coreAction;
   }
